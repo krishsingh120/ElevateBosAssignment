@@ -1,20 +1,15 @@
-import Fastify from 'fastify';
-
-const app = Fastify({
-  logger: true
-});
-
-app.get('/health', async (request, reply) => {
-  return { status: 'ok', environment: process.env.NODE_ENV || 'development' };
-});
+import { buildApp } from './app';
+import { env } from './config/env';
+import { logger } from './utils/logger';
 
 const start = async () => {
+  const app = buildApp();
   try {
-    const port = parseInt(process.env.PORT || '3000', 10);
+    const port = parseInt(env.PORT, 10);
     await app.listen({ port, host: '0.0.0.0' });
-    console.log(`Server listening on port ${port}`);
+    logger.info(`Server successfully started on port ${port} in ${env.NODE_ENV} mode`);
   } catch (err) {
-    app.log.error(err);
+    logger.error(err);
     process.exit(1);
   }
 };
