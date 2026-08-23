@@ -17,7 +17,8 @@ export class VoiceSvc {
       assistant: {
         firstMessage: "Hi, I'm from ElevateBox. Are you the biz owner?",
         model: { provider: "google", model: "gemini-1.5-flash", messages: [{ role: "system", content: getSysPrmpt(env.MY_PHONE_NUMBER || '') }] },
-        voice: { provider: "11labs", voiceId: "eleven_monolingual_v1" },
+        voice: { provider: "11labs", voiceId: "eleven_multilingual_v2" },
+        transcriber: { provider: "openai", model: "whisper-1" },
         metadata: { leadId: ld.id }
       }
     };

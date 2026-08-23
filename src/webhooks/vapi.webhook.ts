@@ -31,9 +31,13 @@ export const handleVapi = async (req: FastifyRequest, res: FastifyReply) => {
           const { cls, s, r } = qSvc.qual(l);
           const uLd = await db.lead.update({ where: { id: lId }, data: { classification: cls, intentScore: s, classificationReasons: JSON.stringify(r) } });
           try {
-             const m = (aiSvc as any).mdl;
-             const res = await m.generateContent(`Draft followup for: ${JSON.stringify(uLd)}`);
-             await db.followup.create({ data: { leadId: lId, content: res.response.text().trim(), status: 'PENDING' } });
+             const { waQ } = await import('../jobs/queue.js');
+             await waQ.add('postCallWA', {
+               leadId: lId,
+               phone: p?.message?.call?.customer?.number,
+               name: uLd.customerName,
+               ctx: { budget: uLd.budget, timeline: uLd.timeline, features: uLd.requiredFeatures }
+             });
           } catch(e) {}
         }
       }
