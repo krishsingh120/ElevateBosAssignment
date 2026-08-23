@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { env } from './config/env';
 import { logger } from './utils/logger';
+import { voiceService } from './services/voice.service';
 
 export function buildApp() {
   const app = Fastify({
@@ -22,7 +23,6 @@ export function buildApp() {
       return reply.status(400).send({ error: 'phoneNumber is required' });
     }
 
-    const { voiceService } = await import('./services/voice.service');
     const callId = await voiceService.initiateOutboundCall(phoneNumber);
 
     if (callId) {
