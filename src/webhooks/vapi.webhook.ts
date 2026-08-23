@@ -73,6 +73,27 @@ export const handleVapiWebhook = async (request: FastifyRequest, reply: FastifyR
                 classificationReasons: JSON.stringify(reasons)
               }
             });
+
+            // Generate a context-aware follow-up draft based on the structured data
+            const draftPrompt = `Based on this e-commerce lead data, draft a short, professional, and personalized follow-up message to send them. Data: ${JSON.stringify(updatedLead)}.`;
+            const draftResult = await aiService.extractStructuredContext(draftPrompt); // Reusing method for quick generation or we can just call Gemini directly. Wait, extractStructuredContext expects JSON. 
+            // I'll call the model directly here for a simple string
+            try {
+               const model = (aiService as any).model; // Accessing private for quick draft
+               const result = await model.generateContent(draftPrompt);
+               const followupContent = result.response.text().trim();
+               
+               await prisma.followup.create({
+                 data: {
+                   leadId,
+                   content: followupContent,
+                   status: 'PENDING'
+                 }
+               });
+               logger.info('Generated post-call context-aware follow-up draft');
+            } catch (err) {
+               logger.error('Failed to generate follow-up draft');
+            }
           }
         }
         break;
