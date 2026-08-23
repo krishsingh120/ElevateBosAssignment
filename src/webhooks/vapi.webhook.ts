@@ -76,6 +76,29 @@ export const handleVapiWebhook = async (request: FastifyRequest, reply: FastifyR
           }
         }
         break;
+
+      case 'tool-calls':
+        const toolCalls = payload?.message?.toolCalls;
+        if (toolCalls && toolCalls.length > 0) {
+          for (const call of toolCalls) {
+            if (call.function?.name === 'send_high_intent_whatsapp') {
+              const args = call.function.arguments;
+              
+              // Import queue lazily to avoid connection initialization if not needed
+              const { whatsappQueue } = await import('../jobs/queue.js');
+              
+              await whatsappQueue.add('sendWhatsApp', {
+                leadId: leadId,
+                phoneNumber: payload?.message?.call?.customer?.number,
+                customerName: args.customerName,
+                context: args.context || args
+              });
+              
+              logger.info('Dispatched high intent WhatsApp job to BullMQ');
+            }
+          }
+        }
+        break;
         
       default:
         // Handle other VAPI events if needed
