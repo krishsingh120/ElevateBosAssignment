@@ -1,33 +1,16 @@
-import { Worker, Job } from 'bullmq';
+import { Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { env } from '../config/env';
-import { logger } from '../utils/logger';
-import { prisma } from '../db/client';
+import { log } from '../utils/logger';
+import { db } from '../db/client';
 
-const connection = new Redis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+const r = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
-export const callbackWorker = new Worker('callback', async (job: Job) => {
-  const { leadId, callbackId, phoneNumber } = job.data;
-  logger.info({ leadId, callbackId, phoneNumber }, 'Executing scheduled callback job');
+export const cbWk = new Worker('cb', async (j) => {
+  const { leadId: lId, cbId, phone: ph } = j.data;
+  await db.callback.update({ where: { id: cbId }, data: { status: 'COMPLETED' } });
+  log.info(`Sim cb to ${ph}`);
+}, { connection: r });
 
-  // Mark callback as completed
-  await prisma.callback.update({
-    where: { id: callbackId },
-    data: { status: 'COMPLETED' }
-  });
-
-  // Here we would use the voiceService to place the outbound call again.
-  // For now, we simulate this to avoid real recursive calling without user intervention.
-  logger.info(`Simulated automated callback being placed to ${phoneNumber}`);
-
-}, { connection });
-
-callbackWorker.on('completed', (job) => {
-  logger.info(`Callback job ${job.id} completed successfully`);
-});
-
-callbackWorker.on('failed', (job, err) => {
-  logger.error(`Callback job ${job?.id} failed with error ${err.message}`);
-});
+cbWk.on('completed', j => log.info(`CB ${j.id} ok`));
+cbWk.on('failed', (j, e) => log.error(`CB ${j?.id} fail: ${e.message}`));

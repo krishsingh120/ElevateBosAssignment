@@ -1,19 +1,18 @@
 import { buildApp } from './app';
 import { env } from './config/env';
-import { logger } from './utils/logger';
 import { connectDB } from './db/client';
+import { log } from './utils/logger';
 
-const start = async () => {
-  const app = buildApp();
+async function start() {
   try {
     await connectDB();
-    const port = parseInt(env.PORT, 10);
+    const app = buildApp();
+    const port = parseInt(env.PORT || '3000', 10);
     await app.listen({ port, host: '0.0.0.0' });
-    logger.info(`Server successfully started on port ${port} in ${env.NODE_ENV} mode`);
-  } catch (err) {
-    logger.error(err);
+    log.info(`App at http://localhost:${port}`);
+  } catch (e) {
+    log.error(e);
     process.exit(1);
   }
-};
-
+}
 start();

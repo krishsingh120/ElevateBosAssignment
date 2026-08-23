@@ -1,41 +1,22 @@
 import Fastify from 'fastify';
 import { env } from './config/env';
-import { logger } from './utils/logger';
-import { voiceService } from './services/voice.service';
-import { handleVapiWebhook } from './webhooks/vapi.webhook';
+import { log } from './utils/logger';
+import { vSvc } from './services/voice.service';
+import { handleVapi } from './webhooks/vapi.webhook';
 
 export function buildApp() {
-  const app = Fastify({
-    logger: logger as any,
+  const app = Fastify({ logger: log as any });
+
+  app.get('/health', async () => ({ status: 'ok', env: env.NODE_ENV, ts: new Date().toISOString() }));
+
+  app.post('/api/calls/outbound', async (req: any, res) => {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).send({ err: 'req phone' });
+    const cId = await vSvc.callOut(phone);
+    return cId ? res.status(200).send({ cId, status: 'init' }) : res.status(500).send({ err: 'fail' });
   });
 
-  app.get('/health', async (request, reply) => {
-    return { 
-      status: 'ok', 
-      environment: env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    };
-  });
-
-  app.post('/api/calls/outbound', async (request: any, reply) => {
-    const { phoneNumber } = request.body;
-    
-    if (!phoneNumber) {
-      return reply.status(400).send({ error: 'phoneNumber is required' });
-    }
-
-    const callId = await voiceService.initiateOutboundCall(phoneNumber);
-
-    if (callId) {
-      return reply.status(200).send({ callId, status: 'initiated' });
-    } else {
-      return reply.status(500).send({ error: 'Failed to initiate call' });
-    }
-  });
-
-  app.post('/api/webhooks/vapi', async (request, reply) => {
-    return handleVapiWebhook(request, reply);
-  });
+  app.post('/api/webhooks/vapi', async (req, res) => handleVapi(req, res));
 
   return app;
 }

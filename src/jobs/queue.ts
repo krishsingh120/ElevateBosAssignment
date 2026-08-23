@@ -1,17 +1,11 @@
-import { Queue, Worker } from 'bullmq';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { env } from '../config/env';
-import { logger } from '../utils/logger';
+import { log } from '../utils/logger';
 
-const connection = new Redis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+const r = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+r.on('error', (e) => log.warn(e as Error, 'Redis err'));
 
-connection.on('error', (err) => {
-  logger.warn(err as Error, 'Redis connection failed (expected in DEMO mode if no Redis available)');
-});
-
-export const whatsappQueue = new Queue('whatsapp', { connection });
-export const callbackQueue = new Queue('callback', { connection });
-
-logger.info('BullMQ Queues initialized');
+export const waQ = new Queue('wa', { connection: r });
+export const cbQ = new Queue('cb', { connection: r });
+log.info('Qs init');

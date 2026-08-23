@@ -1,95 +1,41 @@
 import axios from 'axios';
 import { env } from '../config/env';
-import { logger } from '../utils/logger';
-import { getVoiceAgentSystemPrompt } from '../prompts/systemPrompt';
-import { prisma } from '../db/client';
+import { log } from '../utils/logger';
+import { getSysPrmpt } from '../prompts/systemPrompt';
+import { db } from '../db/client';
 
-export class VoiceService {
-  private readonly vapiBaseUrl = 'https://api.vapi.ai';
+export class VoiceSvc {
+  private url = 'https://api.vapi.ai';
+  async callOut(ph: string) {
+    log.info({ ph }, 'callOut start');
+    let ld = await db.lead.findUnique({ where: { phoneNumber: ph } });
+    if (!ld) ld = await db.lead.create({ data: { phoneNumber: ph } });
 
-  public async initiateOutboundCall(phoneNumber: string): Promise<string | null> {
-    logger.info({ phoneNumber }, 'Initiating outbound call request');
-
-    // Create a new lead record if it doesn't exist, or just use a dummy lead ID for now.
-    // In a full implementation, we'd look up the lead by phone number.
-    let lead = await prisma.lead.findUnique({ where: { phoneNumber } });
-    if (!lead) {
-      lead = await prisma.lead.create({
-        data: { phoneNumber },
-      });
-    }
-
-    // Prepare Vapi payload
-    const systemPrompt = getVoiceAgentSystemPrompt(env.MY_PHONE_NUMBER);
-
-    const payload = {
-      phoneNumber: {
-        twilioPhoneNumber: env.TWILIO_WHATSAPP_NUMBER?.replace('whatsapp:', ''), // Fallback using twilio number, normally you'd use a dedicated voice number
-      },
-      customer: {
-        number: phoneNumber,
-      },
+    const pld = {
+      phoneNumber: { twilioPhoneNumber: env.TWILIO_WHATSAPP_NUMBER?.replace('whatsapp:', '') },
+      customer: { number: ph },
       assistant: {
-        firstMessage: "Hi, this is a friendly consultant from ElevateBox. Am I speaking with the business owner?",
-        model: {
-          provider: "google",
-          model: "gemini-1.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            }
-          ]
-        },
-        voice: {
-          provider: "11labs",
-          voiceId: "eleven_monolingual_v1", // Dummy ID, usually you pick a natural female voice
-        },
-        metadata: {
-          leadId: lead.id
-        }
+        firstMessage: "Hi, I'm from ElevateBox. Are you the biz owner?",
+        model: { provider: "google", model: "gemini-1.5-flash", messages: [{ role: "system", content: getSysPrmpt(env.MY_PHONE_NUMBER || '') }] },
+        voice: { provider: "11labs", voiceId: "eleven_monolingual_v1" },
+        metadata: { leadId: ld.id }
       }
     };
 
     if (env.VOICE_API_KEY === 'dummy_vapi_key') {
-      logger.warn('Dummy VAPI key detected. Simulating outbound call logic in DEMO mode.');
-      // Simulate successful call initiation
-      const simulatedCallId = `demo-call-${Date.now()}`;
-      await prisma.call.create({
-        data: {
-          leadId: lead.id,
-          providerCallId: simulatedCallId,
-          status: 'initiated',
-        }
-      });
-      return simulatedCallId;
+      log.warn('Sim DEMO call');
+      const sId = `demo-${Date.now()}`;
+      await db.call.create({ data: { leadId: ld.id, providerCallId: sId, status: 'init' } });
+      return sId;
     }
-
     try {
-      const response = await axios.post(`${this.vapiBaseUrl}/call/phone`, payload, {
-        headers: {
-          'Authorization': `Bearer ${env.VOICE_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const callId = response.data.id;
-      
-      await prisma.call.create({
-        data: {
-          leadId: lead.id,
-          providerCallId: callId,
-          status: 'initiated',
-        }
-      });
-
-      logger.info({ callId }, 'Successfully initiated Vapi outbound call');
-      return callId;
-    } catch (error: any) {
-      logger.error({ error: error.response?.data || error.message }, 'Failed to initiate outbound call');
+      const res = await axios.post(`${this.url}/call/phone`, pld, { headers: { Authorization: `Bearer ${env.VOICE_API_KEY}` } });
+      await db.call.create({ data: { leadId: ld.id, providerCallId: res.data.id, status: 'init' } });
+      return res.data.id;
+    } catch (e: any) {
+      log.error({ err: e.response?.data || e.message }, 'callOut fail');
       return null;
     }
   }
 }
-
-export const voiceService = new VoiceService();
+export const vSvc = new VoiceSvc();
