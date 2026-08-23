@@ -95,6 +95,40 @@ export const handleVapiWebhook = async (request: FastifyRequest, reply: FastifyR
               });
               
               logger.info('Dispatched high intent WhatsApp job to BullMQ');
+            } else if (call.function?.name === 'schedule_callback') {
+              const args = call.function.arguments;
+              const phrase = args.phrase || args.datetime || args;
+              
+              const parsedTime = await aiService.parseCallbackTime(phrase);
+              if (parsedTime && parsedTime.timestamp) {
+                const scheduledDate = new Date(parsedTime.timestamp);
+                
+                // Save to database
+                const callbackRecord = await prisma.callback.create({
+                  data: {
+                    leadId: leadId,
+                    originalPhrase: phrase,
+                    scheduledFor: scheduledDate,
+                    status: 'SCHEDULED'
+                  }
+                });
+
+                // Import queue lazily
+                const { callbackQueue } = await import('../jobs/queue.js');
+                
+                // Calculate delay in milliseconds
+                const delay = Math.max(0, scheduledDate.getTime() - Date.now());
+                
+                await callbackQueue.add('executeCallback', {
+                  leadId: leadId,
+                  callbackId: callbackRecord.id,
+                  phoneNumber: payload?.message?.call?.customer?.number,
+                }, { delay });
+                
+                logger.info({ delayMs: delay, phrase }, 'Dispatched delayed callback job to BullMQ');
+              } else {
+                logger.warn('Failed to parse callback time from AI Service');
+              }
             }
           }
         }

@@ -50,6 +50,38 @@ export class AIService {
       return null;
     }
   }
+
+  /**
+   * Parses natural language date/time into an ISO timestamp.
+   * Calculates relative to Asia/Kolkata timezone context.
+   */
+  async parseCallbackTime(phrase: string): Promise<{ timestamp: string, confidence: number } | null> {
+    const prompt = `
+      You are a datetime extraction parser. The user is in "Asia/Kolkata" timezone.
+      The current time is ${new Date().toISOString()}.
+      
+      The user said: "${phrase}"
+      
+      Calculate the exact future ISO 8601 timestamp for this callback.
+      Return the output as a valid JSON object matching the following structure exactly. Do not include markdown.
+      
+      Structure:
+      {
+        "timestamp": "YYYY-MM-DDTHH:mm:ss.sssZ",
+        "confidence": number (0 to 100)
+      }
+    `;
+
+    try {
+      const result = await this.model.generateContent(prompt);
+      const responseText = result.response.text().trim();
+      const jsonString = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(jsonString);
+    } catch (error) {
+      logger.error(error as Error, 'Failed to parse callback time');
+      return null;
+    }
+  }
 }
 
 export const aiService = new AIService();

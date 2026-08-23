@@ -33,6 +33,7 @@ model Lead {
   calls                 Call[]
   followups             Followup[]
   whatsappMessages      WhatsappMessage[]
+  callbacks             Callback[]
   
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -84,4 +85,16 @@ model WhatsappMessage {
   
   lead        Lead     @relation(fields: [leadId], references: [id])
   createdAt   DateTime @default(now())
+}
+
+model Callback {
+  id              String   @id @default(uuid())
+  leadId          String
+  originalPhrase  String
+  scheduledFor    DateTime
+  status          String   // SCHEDULED, COMPLETED, CANCELLED
+  
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

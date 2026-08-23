@@ -12,5 +12,6 @@ connection.on('error', (err) => {
 });
 
 export const whatsappQueue = new Queue('whatsapp', { connection });
+export const callbackQueue = new Queue('callback', { connection });
 
-logger.info('BullMQ WhatsApp Queue initialized');
+logger.info('BullMQ Queues initialized');
