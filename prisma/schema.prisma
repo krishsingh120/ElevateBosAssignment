@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id                    String    @id @default(uuid())
+  phoneNumber           String    @unique
+  customerName          String?
+  businessType          String?
+  productsCount         String?
+  budget                String?
+  timeline              String?
+  requiredFeatures      String?
+  objections            String?
+  decisionMaker         String?
+  buyingSignals         String?
+  
+  intentScore           Int?
+  classification        String?   // HOT, WARM, COLD
+  classificationReasons String?   // JSON string array
+  
+  callbackRequested     Boolean   @default(false)
+  callbackTime          DateTime?
+  
+  whatsappTriggered     Boolean   @default(false)
+  whatsappStatus        String?
+  
+  calls                 Call[]
+  followups             Followup[]
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Call {
+  id                  String    @id @default(uuid())
+  leadId              String
+  providerCallId      String?   @unique
+  status              String
+  language            String?
+  transcript          String?
+  conversationSummary String?
+  
+  lead                Lead      @relation(fields: [leadId], references: [id])
+  events              ConversationEvent[]
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model ConversationEvent {
+  id          String   @id @default(uuid())
+  callId      String
+  role        String   // "user" | "agent" | "system"
+  message     String
+  timestamp   DateTime @default(now())
+  
+  call        Call     @relation(fields: [callId], references: [id])
+}
+
+model Followup {
+  id          String   @id @default(uuid())
+  leadId      String
+  content     String
+  status      String   // PENDING, SENT, FAILED
+  sentAt      DateTime?
+  
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
