@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { voiceService } from './services/voice.service';
+import { handleVapiWebhook } from './webhooks/vapi.webhook';
 
 export function buildApp() {
   const app = Fastify({
@@ -30,6 +31,10 @@ export function buildApp() {
     } else {
       return reply.status(500).send({ error: 'Failed to initiate call' });
     }
+  });
+
+  app.post('/api/webhooks/vapi', async (request, reply) => {
+    return handleVapiWebhook(request, reply);
   });
 
   return app;
