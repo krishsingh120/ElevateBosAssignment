@@ -5,7 +5,7 @@ import { vSvc } from './services/voice.service';
 import { handleVapi } from './webhooks/vapi.webhook';
 
 export function buildApp() {
-  const app = Fastify({ logger: log as any });
+  const app = Fastify({ logger: true });
 
   app.get('/health', async () => ({ status: 'ok', env: env.NODE_ENV, ts: new Date().toISOString() }));
 

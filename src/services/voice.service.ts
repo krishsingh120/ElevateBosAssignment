@@ -12,13 +12,12 @@ export class VoiceSvc {
     if (!ld) ld = await db.lead.create({ data: { phoneNumber: ph } });
 
     const pld = {
-      phoneNumber: { twilioPhoneNumber: env.TWILIO_WHATSAPP_NUMBER?.replace('whatsapp:', '') },
       customer: { number: ph },
       assistant: {
         firstMessage: "Hi, I'm from ElevateBox. Are you the biz owner?",
         model: { provider: "google", model: "gemini-1.5-flash", messages: [{ role: "system", content: getSysPrmpt(env.MY_PHONE_NUMBER || '') }] },
         voice: { provider: "11labs", voiceId: "eleven_multilingual_v2" },
-        transcriber: { provider: "openai", model: "whisper-1" },
+        transcriber: { provider: "deepgram", model: "nova-2", language: "multi" },
         metadata: { leadId: ld.id }
       }
     };
